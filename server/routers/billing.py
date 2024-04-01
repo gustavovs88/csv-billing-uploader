@@ -1,6 +1,6 @@
 from fastapi import APIRouter, BackgroundTasks, UploadFile, File, HTTPException
 from services.billing import (
-    issue_receipts,
+    issue_receipts_in_thread,
     upload_billing_csv,
     get_upload_billing_records,
 )
@@ -25,7 +25,7 @@ async def upload_csv_file(
     # Check if the file is a CSV
     if file.filename.endswith(".csv"):
         uploadId = await upload_billing_csv(file)
-        background_tasks.add_task(issue_receipts, uploadId)
+        background_tasks.add_task(issue_receipts_in_thread, uploadId)
         return {"message": "File uploaded and saved successfully."}
 
     raise HTTPException(

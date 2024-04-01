@@ -12,7 +12,7 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
         <>
           <Components.Header />
           <FileProvider>
-            <Components.FileUploader label="Insira o arquivo csv"></Components.FileUploader>
+            <Components.FileUploader label="Insira o arquivo csv com as cobranças"></Components.FileUploader>
             <Components.FileListTable />
           </FileProvider>
         </>

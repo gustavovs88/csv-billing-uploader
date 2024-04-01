@@ -3,6 +3,17 @@ import { ReactNode, createContext, useContext, useReducer } from "react";
 export enum FileActionType {
   SET_FILE,
   UPLOAD_FILE,
+  GET_SUBMITTED_FILES,
+}
+
+export enum ServerFileSubmittedStatus {
+  ACKNOWLEDGED = "ACKNOWLEDGED",
+  SENT = "SENT",
+}
+
+export enum ClientFileSubmittedStatus {
+  ACKNOWLEDGED = "Processando",
+  SENT = "Concluído",
 }
 
 type ReducerAction<T, P> = {
@@ -10,10 +21,18 @@ type ReducerAction<T, P> = {
   payload?: Partial<P>;
 };
 
+export interface SubmittedFiles {
+  id: number;
+  name: string;
+  createdat: string;
+  updatedat: string;
+  status: ServerFileSubmittedStatus;
+}
+
 type FileContextState = {
   isLoading: boolean;
   file: File | null;
-  fileList: File[]; // & {} You can add more information about the challenge inside this type
+  submittedFiles: SubmittedFiles[]; // & {} You can add more information about the challenge inside this type
 };
 
 type FileAction = ReducerAction<FileActionType, Partial<FileContextState>>;
@@ -29,7 +48,7 @@ type FileProviderProps = { children: ReactNode };
 
 export const FileContextInitialValues: Partial<FileContextState> = {
   file: null,
-  fileList: [],
+  submittedFiles: [],
   isLoading: false,
 };
 
@@ -43,8 +62,9 @@ const FileReducer = (
     case FileActionType.SET_FILE:
       return { ...state, file: action.payload?.file || null };
     case FileActionType.UPLOAD_FILE:
-      state.file && state.fileList.push(state.file);
       return { ...state, file: null };
+    case FileActionType.GET_SUBMITTED_FILES:
+      return { ...state, submittedFiles: action.payload?.submittedFiles || [] };
     default: {
       throw new Error(`Unhandled action type: ${action.type}`);
     }

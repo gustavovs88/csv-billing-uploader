@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useFileContext, FileActionType } from "./file";
+import { useFileContext, FileActionType, SubmittedFiles } from "./file";
 import fetchClient from "@/lib/fetchClient";
 import { LoadingSpinner } from "./load-spinner";
 
@@ -35,17 +35,29 @@ const FileUploader = ({ label }: FileUploaderProps) => {
     setIsLoading(true);
     try {
       if (!file) return;
-      const fetch = await fetchClient.postFile("/billings/csv/upload", file);
-      console.log(fetch);
-      if (!fetch.ok) {
-        console.log(fetch);
+      const submitFile = await fetchClient.postFile(
+        "/billings/csv/upload",
+        file
+      );
+      if (!submitFile.ok) {
         setIsLoading(false);
         throw new Error("Erro ao submeter o arquivo");
       }
       dispatch({ type: FileActionType.UPLOAD_FILE });
+      const submittedFiles: { records: SubmittedFiles[] } =
+        await fetchClient.get("/billings/csv/uploads");
+      if ("error" in submittedFiles) {
+        alert("Erro ao buscar arquivos submetidos");
+        setIsLoading(false);
+      } else {
+        dispatch({
+          type: FileActionType.GET_SUBMITTED_FILES,
+          payload: { submittedFiles: submittedFiles.records },
+        });
+      }
+
       setIsLoading(false);
     } catch (error) {
-      console.log(error);
       alert("Erro ao submeter o arquivo");
       setIsLoading(false);
     }

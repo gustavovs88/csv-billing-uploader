@@ -1,15 +1,23 @@
-import psycopg2
+from contextlib import contextmanager
+import psycopg2.pool
 
 
 class Database:
     def __init__(self):
-        self.connection = None
+        self.db = None
         self.cursor = None
 
     def create_tables(self):
         # Create tables if it doesn't exist
-
-        self.cursor.execute(
+        conn = psycopg2.connect(
+            user="admin",
+            password="S3cret",
+            host="postgres",
+            port="5432",
+            database="kanastra",
+        )
+        cursor = conn.cursor()
+        cursor.execute(
             """CREATE TABLE IF NOT EXISTS billings_uploads (
                         id SERIAL PRIMARY KEY,
                         name VARCHAR(255),
@@ -19,7 +27,7 @@ class Database:
                     )"""
         )
 
-        self.cursor.execute(
+        cursor.execute(
             """CREATE TABLE IF NOT EXISTS billings (
                             id SERIAL PRIMARY KEY,
                             name VARCHAR(255),
@@ -39,21 +47,33 @@ class Database:
                         )"""
         )
 
-    def connect(self):
-        conn = psycopg2.connect("dbname=kanastra user=gustavo")
+        conn.commit()
+        conn.close()
 
-        self.connection = conn
-        self.cursor = conn.cursor()
+    def connect(self):
+        conn = psycopg2.pool.SimpleConnectionPool(
+            2,
+            5,
+            user="admin",
+            password="S3cret",
+            host="postgres",
+            port="5432",
+            database="kanastra",
+        )
+
+        self.db = conn
+        self.cursor = conn.getconn().cursor()
+
+    @contextmanager
+    def get_connection(self):
+        con = self.db.getconn()
+        try:
+            yield con
+        finally:
+            self.db.putconn(con)
 
     def disconnect(self):
-        self.connection.close()
-
-    def toJSON(self, rows, one=False):
-        r = [
-            dict((self.cursor.description[i][0], value) for i, value in enumerate(row))
-            for row in rows
-        ]
-        return (r[0] if r else None) if one else r
+        self.db.closeall()
 
 
 instance = Database()
