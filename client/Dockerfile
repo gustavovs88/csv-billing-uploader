@@ -8,6 +8,8 @@ RUN npm install
 
 COPY . .
 
+RUN npm run tailwindcss
+
 RUN npm run build:node
 
 EXPOSE 8888
