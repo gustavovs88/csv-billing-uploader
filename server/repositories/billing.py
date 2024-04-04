@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import List
 from fastapi import HTTPException
 from dependencies import database
-from psycopg2.extras import execute_batch, RealDictCursor
+from psycopg2.extras import RealDictCursor
 
 
 def save_single_billing(csv_row, uploadId):
@@ -32,27 +32,31 @@ def save_single_billing(csv_row, uploadId):
             )
 
 
-def insert_csv_to_database(csv):
+def copy_csv_to_database(csv, uploadid):
     with database.instance.get_connection() as conn:
         try:
             cursor = conn.cursor()
-            stmt = """INSERT INTO billings (
-                        name,
-                        governmentId,
-                        email,
-                        debtAmount,
-                        debtDueDate,
-                        debtId,
-                        uploadId
-                        )
-                        VALUES ($1, $2, $3, $4, $5, $6, $7)"""
-            cursor.execute(f"PREPARE stmt AS {stmt}")
-            execute_batch(cursor, "EXECUTE stmt (%s, %s, %s, %s, %s, %s, %s)", csv)
-            cursor.execute("DEALLOCATE stmt")
+            cursor.execute(
+                "ALTER TABLE billings DROP CONSTRAINT IF EXISTS fk_billings_uploads"
+            )
+            cursor.execute(
+                f"ALTER TABLE billings ALTER uploadid SET DEFAULT {uploadid}"
+            )
+            cursor.copy_expert(
+                "COPY billings(name, governmentid, email, debtamount, debtduedate, debtid) FROM STDIN WITH HEADER CSV",
+                csv,
+            )
+            cursor.execute(
+                """
+                ALTER TABLE billings 
+                ADD CONSTRAINT fk_billings_uploads 
+                FOREIGN KEY(uploadId) REFERENCES billings_uploads(id)
+                """
+            )
             conn.commit()
         except Exception as error:
             conn.rollback()
-            print("insert_csv_to_database error", error)
+            print("copy_csv_to_database error", error)
             raise HTTPException(
                 status_code=500, detail=f"Failed to insert file in database"
             )
@@ -119,14 +123,14 @@ def fetch_all_upload_billing_records():
 def fetch_billing_by_upload_id(uploadId):
     with database.instance.get_connection() as conn:
         try:
-            cursor = conn.cursor()
+            cursor = conn.cursor("server_cursor")
             cursor.execute(
                 """SELECT * FROM billings
                         WHERE uploadId = %s""",
                 (uploadId,),
             )
 
-            return cursor.fetchall()
+            return cursor
         except Exception as error:
             print("fetch_all_upload_billing_records error", error)
             raise HTTPException(status_code=500, detail=f"Failed to fetch billings")
@@ -135,14 +139,14 @@ def fetch_billing_by_upload_id(uploadId):
 def fetch_pending_billings():
     with database.instance.get_connection() as conn:
         try:
-            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            cursor = conn.cursor()
             cursor.execute(
                 """SELECT * FROM billings
                     WHERE status = %s""",
                 ("ACKNOWLEDGED",),
             )
 
-            return cursor.fetchall()
+            return cursor
         except Exception as error:
             print("fetch_pending_billings error", error)
 

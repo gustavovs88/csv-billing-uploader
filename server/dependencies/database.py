@@ -51,7 +51,7 @@ class Database:
         conn.close()
 
     def connect(self):
-        conn = psycopg2.pool.SimpleConnectionPool(
+        conn = psycopg2.pool.ThreadedConnectionPool(
             2,
             5,
             user="admin",
