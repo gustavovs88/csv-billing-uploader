@@ -123,14 +123,14 @@ def fetch_all_upload_billing_records():
 def fetch_billing_by_upload_id(uploadId):
     with database.instance.get_connection() as conn:
         try:
-            cursor = conn.cursor("server_cursor")
-            cursor.execute(
-                """SELECT * FROM billings
-                        WHERE uploadId = %s""",
-                (uploadId,),
-            )
-
-            return cursor
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    """SELECT * FROM billings
+                            WHERE uploadId = %s""",
+                    (uploadId,),
+                )
+                rows = cursor.fetchmany(1000)
+                return rows
         except Exception as error:
             print("fetch_all_upload_billing_records error", error)
             raise HTTPException(status_code=500, detail=f"Failed to fetch billings")
@@ -139,14 +139,14 @@ def fetch_billing_by_upload_id(uploadId):
 def fetch_pending_billings():
     with database.instance.get_connection() as conn:
         try:
-            cursor = conn.cursor()
+            cursor = conn.cursor(name="pending_cursor")
             cursor.execute(
                 """SELECT * FROM billings
                     WHERE status = %s""",
                 ("ACKNOWLEDGED",),
             )
 
-            return cursor
+            return cursor.fetchmany(500)
         except Exception as error:
             print("fetch_pending_billings error", error)
 
@@ -156,7 +156,7 @@ def fetch_acknowledged_uploads():
         try:
             cursor = conn.cursor()
             cursor.execute(
-                """SELECT * FROM billings_uploads
+                """SELECT id FROM billings_uploads
                     WHERE status = %s""",
                 ("ACKNOWLEDGED",),
             )

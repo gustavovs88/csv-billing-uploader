@@ -1,7 +1,4 @@
-import asyncio
-import csv
 from functools import wraps
-from io import StringIO
 from fastapi import UploadFile
 from repositories import billing as repository
 import threading
@@ -23,20 +20,22 @@ async def get_upload_billing_records():
     return records
 
 
-def issue_receipts_for_uploaded_file(uploadId: int):
+async def issue_receipts_for_uploaded_file(uploadId: int):
     global cron_job_running
     global background_job_running
     if not cron_job_running and not background_job_running:
         print(f":: Start issuing receipts for uploaded file. Upload id: {uploadId}")
-
         background_job_running = True
         try:
-            billings = repository.fetch_billing_by_upload_id(uploadId)
-            for row in billings:
-                ## Emite o boleto para cada registro
-                ## Envia notificação para o email
-                ## Atualiza status da cobrança no banco
-                repository.update_status(row[0], "SENT", "billings")
+            while True:
+                billings = repository.fetch_billing_by_upload_id(uploadId)
+                if len(billings) == 0:
+                    break
+                for row in billings:
+                    ## Emite o boleto para cada registro
+                    ## Envia notificação para o email
+                    ## Atualiza status da cobrança no banco
+                    repository.update_status(row[0], "SENT", "billings")
             # Atualiza status do registro de upload.
             repository.update_status(uploadId, "SENT", "billings_uploads")
             print(
@@ -55,10 +54,6 @@ def issue_receipts_for_uploaded_file(uploadId: int):
         )
 
 
-def issue_receipts_in_thread(uploadId):
-    threading.Thread(target=issue_receipts_for_uploaded_file(uploadId)).start()
-
-
 async def issue_receipts_cron_job():
     global cron_job_running
     global background_job_running
@@ -66,17 +61,21 @@ async def issue_receipts_cron_job():
         print(f":: Start issuing pending receipts.")
         cron_job_running = True
         try:
-            billings = repository.fetch_pending_billings()
-            # if len(billings) == 0:
-            #     print(":: No pending receipts to issue.")
-            #     return
-            for row in billings:
-                ## Emite o boleto para cada registro
-                ## Envia notificação para o email
-                ## Atualiza status da cobrança no banco
-                repository.update_status(row[0], "SENT", "billings")
+            while True:
+                billings = repository.fetch_pending_billings()
+                if len(billings) == 0:
+                    break
+                # if len(billings) == 0:
+                #     print(":: No pending receipts to issue.")
+                #     return
+                for row in billings:
+                    ## Emite o boleto para cada registro
+                    ## Envia notificação para o email
+                    ## Atualiza status da cobrança no banco
+                    repository.update_status(row[0], "SENT", "billings")
             # # Atualiza status do registro de upload.
             updated_billings_uploads = repository.fetch_acknowledged_uploads()
+            print(f":: Updated billings uploads: {updated_billings_uploads}")
             repository.update_many_billings_uploads_status(
                 updated_billings_uploads, "SENT"
             )

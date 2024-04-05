@@ -53,7 +53,7 @@ class Database:
     def connect(self):
         conn = psycopg2.pool.ThreadedConnectionPool(
             2,
-            5,
+            20,
             user="admin",
             password="S3cret",
             host="postgres",

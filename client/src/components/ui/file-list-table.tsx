@@ -26,20 +26,23 @@ const FileListTable = () => {
   useEffect(() => {}, [state.submittedFiles]); //Re-renders on submittedFiles update
 
   const handleUpdate = async () => {
-    setIsLoading(true);
-    const submittedFiles: { records: SubmittedFiles[] } = await fetchClient.get(
-      "/billings/csv/uploads"
-    );
-    if ("error" in submittedFiles) {
+    try {
+      setIsLoading(true);
+      const submittedFiles: { records: SubmittedFiles[] } =
+        await fetchClient.get("/billings/csv/uploads");
+      if ("error" in submittedFiles) {
+        throw new Error();
+      } else {
+        dispatch({
+          type: FileActionType.GET_SUBMITTED_FILES,
+          payload: { submittedFiles: submittedFiles.records },
+        });
+      }
+      setIsLoading(false);
+    } catch (error) {
       alert("Erro ao buscar arquivos submetidos");
       setIsLoading(false);
-    } else {
-      dispatch({
-        type: FileActionType.GET_SUBMITTED_FILES,
-        payload: { submittedFiles: submittedFiles.records },
-      });
     }
-    setIsLoading(false);
   };
 
   return (
